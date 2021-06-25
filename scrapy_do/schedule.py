@@ -305,14 +305,23 @@ class Schedule:
 
         :param job: A :class:`Job <Job>` object
         """
+
+        priority = 500
+        if "priority" in job.payload:
+
+            payloadjson = json.loads(job.payload)
+
+            if str(payloadjson["priority"]).isnumeric():
+                priority = int(payloadjson["priority"])
+
         query = "REPLACE INTO schedule" \
                 "(identifier, status, actor, schedule, project, spider, " \
-                "timestamp, duration, description, payload) " \
-                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "timestamp, duration, description, payload, priority) " \
+                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         self.db.execute(query, (job.identifier, job.status.value,
                                 job.actor.value, job.schedule, job.project,
                                 job.spider, job.timestamp, job.duration,
-                                job.description, job.payload))
+                                job.description, job.payload, priority))
         self.db.commit()
 
     #---------------------------------------------------------------------------
