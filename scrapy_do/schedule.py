@@ -13,6 +13,7 @@ import dateutil.parser
 import sqlite3
 import shutil
 import uuid
+import json
 
 from scrapy_do.utils import TimeStamper
 from datetime import datetime
@@ -193,7 +194,8 @@ class Schedule:
                 "timestamp DATETIME NOT NULL, " \
                 "duration INTEGER," \
                 "description VARCHAR(512) NOT NULL," \
-                "payload VARCHAR(4096) NOT NULL" \
+                "payload VARCHAR(4096) NOT NULL," \
+                "priority INTEGER DEFAULT 500" \
                 ")"
         self.db.execute(query)
         self.db.commit()
@@ -215,7 +217,7 @@ class Schedule:
 
         :param job_status: One of :class:`statuses <Status>`
         """
-        query = "SELECT * FROM schedule WHERE status=? ORDER BY timestamp DESC"
+        query = "SELECT * FROM schedule WHERE status=? ORDER BY priority ASC, timestamp DESC"
         response = self.db.execute(query, (job_status.value, ))
         return [_record_to_job(rec) for rec in response]
 
@@ -228,7 +230,7 @@ class Schedule:
         """
         query = "SELECT * FROM schedule WHERE " \
                 "status=1 OR status=2 OR status=3 "\
-                "ORDER BY timestamp DESC"
+                "ORDER BY priority ASC, timestamp DESC"
         response = self.db.execute(query)
         return [_record_to_job(rec) for rec in response]
 
@@ -241,7 +243,7 @@ class Schedule:
         """
         query = "SELECT * FROM schedule WHERE " \
                 "status=4 OR status=5 OR status=6 "\
-                "ORDER BY timestamp DESC"
+                "ORDER BY priority ASC, timestamp DESC"
         response = self.db.execute(query)
         return [_record_to_job(rec) for rec in response]
 
@@ -252,7 +254,7 @@ class Schedule:
         """
         query = "SELECT * FROM schedule WHERE " \
                 "status=1 AND project=?" \
-                "ORDER BY timestamp DESC"
+                "ORDER BY priority ASC, timestamp DESC"
         response = self.db.execute(query, (project, ))
         return [_record_to_job(rec) for rec in response]
 
@@ -277,14 +279,23 @@ class Schedule:
 
         :param job: A :class:`Job <Job>` object
         """
+
+        priority = 500
+        if "priority" in job.payload:
+
+            payloadjson = json.loads(job.payload)
+
+            if str(payloadjson["priority"]).isnumeric():
+                priority = int(payloadjson["priority"])
+
         query = "INSERT INTO schedule" \
                 "(identifier, status, actor, schedule, project, spider, " \
-                "timestamp, duration, description, payload) " \
-                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "timestamp, duration, description, payload, priority) " \
+                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         self.db.execute(query, (job.identifier, job.status.value,
                                 job.actor.value, job.schedule, job.project,
                                 job.spider, job.timestamp, job.duration,
-                                job.description, job.payload))
+                                job.description, job.payload,priority))
         self.db.commit()
 
     #---------------------------------------------------------------------------
